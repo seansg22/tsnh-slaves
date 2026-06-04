@@ -1,6 +1,6 @@
 ---
 name: review-be-td
-description: Review a Backend Technical Design (TD) from a frontend developer's perspective: verify the BE TD exposes everything the FE needs to implement the PRD, and surface gaps or mismatches before FE development begins. Use when the user shares a BE TD and wants to understand what APIs and data contracts the FE will get.
+description: "Review a Backend Technical Design (TD) from a frontend developer's perspective: verify the BE TD exposes everything the FE needs to implement the PRD, and surface gaps or mismatches before FE development begins. Use when the user shares a BE TD and wants to understand what APIs and data contracts the FE will get."
 ---
 
 # Review BE TD (FE Perspective)
