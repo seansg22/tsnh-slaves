@@ -15,7 +15,9 @@ Analyze a PRD from a **frontend developer's perspective**: extract the UI/FE req
 
 Use available tools and MCP servers to fetch the PRD content from whatever source the user provided (URL, Confluence link, file path, or raw text). Also use available tools and MCP servers to fetch and read all images embedded in the PRD (mockups, diagrams, screenshots) — they often contain requirements not written in the text.
 
-After fetching the main PRD, scan it for references to other PRDs (linked URLs or named documents). For each referenced PRD, fetch its content, read all its images, and fetch all their MRs as well.
+For every Figma link found in the PRD (design specs, prototypes, component links), fetch and read the Figma design using available Figma MCP tools. Extract layout, component structure, spacing, colors, interaction states (hover, focus, error, empty, loading), and any annotations. Treat Figma designs as the source of truth for visual and interaction requirements.
+
+After fetching the main PRD, scan it for references to other PRDs (linked URLs or named documents). For each referenced PRD, fetch its content, read all its images and Figma links, and fetch all their MRs as well.
 
 Fetch the current repo's recent MRs (last 6 months) for ongoing work that may intersect with the current PRD.
 
@@ -36,6 +38,21 @@ For each requirement in the PRD, focus on what the **frontend** needs to build o
    - **Config / flag** — feature flag, A/B experiment, or environment config
 3. **Group related requirements** — e.g. all changes to one page, all new components, all routing/config changes — so the table stays concise and scannable rather than one row per micro-detail.
 4. Map each group to the likely affected area (page, component, hook, state slice).
+
+### Step 3.5: Flag Design vs. Implementation Misalignments
+
+Skip this step entirely if the PRD explicitly mentions updating the UI or redesigning visuals — those misalignments are intentional and already accounted for in the requirements.
+
+Only run this step when the PRD makes no mention of UI design changes (e.g. it's a purely functional or data change). In that case, compare the design assets from Step 1 against the current implementation to surface regressions or drift the PRD author may not have noticed.
+
+For each mismatch, record:
+- What the design specifies
+- What the current implementation does
+- Which file/component is affected
+
+Focus on user-visible differences only: layout, copy, component states, interaction flows, missing elements, extra elements, or wrong defaults. Ignore minor pixel-level variance — flag structural and behavioral differences that a user would notice or a PM would care about.
+
+If no Figma or design assets were found in the PRD, skip this step.
 
 ### Step 4: Surface Concerns
 
@@ -70,6 +87,12 @@ Group related items (e.g. all changes for one page, all new components, all conf
 
 **[Type] Requirement Group**
 Affected area: page, component, or hook
+
+### Design vs. Implementation Misalignments
+
+List mismatches found between the PRD's design assets (images, Figma) and what is currently implemented. Omit this section if no design assets were found. Use this format for each mismatch:
+
+**[Component/Page]** What the design shows vs. what the current code does. File: `path/to/file.tsx`
 
 ### Open Questions
 

@@ -4,7 +4,7 @@
     {
       "title": "Frontend Review",
       "description": "Skills for reviewing PRDs and technical designs from a frontend perspective.",
-      "skills": ["review-prd", "review-be-td", "review-fe-td"]
+      "skills": ["review-prd", "review-be-td", "review-fe-td", "review-code"]
     }
   ]
 }

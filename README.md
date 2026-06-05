@@ -18,3 +18,6 @@ Review a Backend Technical Design from a frontend developer's perspective: verif
 
 ### review-fe-td
 Review a Frontend Technical Design against its PRD and BE TD to verify UI requirement coverage, API contract alignment, and surface gaps before FE implementation begins.
+
+### review-code
+Review the current branch's code changes for correctness bugs, missing edge cases, performance issues, and code quality. Optionally cross-checks implementation against a PRD, BE TD, and/or FE TD to verify requirement traceability.
