@@ -11,93 +11,63 @@ The review is surgical — focused on what changed, not a full codebase audit.
 
 ## Execution Flow
 
-### Step 1: Gather the Diff
+### Step 1: Gather the Diff and MR Description
 
-Use any available tools and MCP servers to fetch the diff and commit metadata (MR URL, branch name, title, description).
-
-If no tool or MCP is available, fall back to use `git diff`
-
-If still empty, stop and tell the user there is nothing to review.
+Use any available tools and MCP servers to fetch the diff, commit metadata, and the full MR description (MR URL, branch name, title, description, linked tickets). If no tool or MCP is available, fall back to `git diff`. If still empty, stop and tell the user there is nothing to review.
 
 ### Step 2: Fetch Design Documents (if provided)
 
-For each document provided (`prd`, `be_td`, `fe_td`):
-- Use available tools and MCP servers to fetch the content.
-- Read all embedded images (mockups, diagrams, flow charts) — they often contain requirements not in the text.
-- If a document links to other referenced documents, fetch those too.
+For each document provided (PRD/TRD, BE TD, FE TD), use available tools and MCP servers to fetch the content. Read all embedded images (mockups, diagrams, flow charts) — they often contain requirements not in the text. If a document links to other referenced documents, fetch those too.
 
 Skip this step entirely if no design documents are provided.
 
 ### Step 3: Understand the Context
 
-**Repo conventions (extract first):**
-- Identify the repo's established patterns by reading key files: state management structure, API layer conventions (how services/hooks are named and organized), component patterns, file and folder naming.
-- This becomes the baseline for flagging convention deviations in the diff.
-- Do NOT flag linting or formatting issues — those are the linter's job, not this review's.
+**Repo conventions (extract first):** Read the repo's key files to infer its actual rules — do not assume. Extract the rules the repo follows for: how data is fetched and which layer owns it, how state is managed and with what tools, how components are structured and split, how files and symbols are named, and what shared utilities or modules already exist. These extracted rules become the checklist for **Repo Conventions** findings in Step 4. Do NOT flag linting or formatting issues — those are the linter's job.
 
-**Diff context:**
-- Identify which files changed. Group them by domain (e.g. components, hooks, API layer, tests, config).
-- For each changed file, read the full file (not just the diff) to understand surrounding context: how the changed code fits into the larger module, what invariants exist, what the caller expects.
-- Check the git log for related recent changes in the same area to avoid flagging intentional changes or re-raising already-fixed issues.
+**Diff context:** Identify which files changed and group them by domain. For each changed file, read the full file — not just the diff — to understand surrounding context, existing invariants, and what callers expect. Check the git log for related recent changes in the same area to avoid flagging intentional changes or re-raising already-fixed issues.
+
+### Step 3.5: Draw Architecture Flow Charts
+
+Before reviewing individual findings, produce ASCII flow charts that map the structural shape of the changes. Output these charts as part of the report (under **Architecture Overview**) so the reader can orient themselves before reading findings.
+
+Draw **all four** sections that are relevant to the diff. Omit a section only if the diff has zero changes in that area.
+
+**Entry Points** — show which existing pages/components/hooks now trigger new behavior, what condition gates the new path, and what new component or action it leads to.
+
+**New Component Tree** — show the full parent→child hierarchy of every new component introduced. For each leaf or orchestrator, annotate what it reads (store fields, props, composable) and what it calls (API, emit, action).
+
+**Data Flow** — show each API endpoint touched by the diff: HTTP method + path, what triggers it, what state or local variable it populates, and which component consumes that state.
+
+**Shared Lib Changes** — list every shared utility, type, enum, or component modified outside the feature's own directory. For each, one line: what changed and which new feature code depends on it.
+
+Refer to `skills/review-code/mr_flow_chart_example.md` for the format and style.
 
 ### Step 4: Review the Changes
 
 Evaluate each change against the categories below. Only flag findings relevant to **what actually changed** — do not audit unchanged code.
 
-**Correctness & Bugs:**
-- Logic errors
-- Race conditions
-- State mutation: mutating shared objects or values that should be immutable
+**Correctness & Bugs:** Look for logic errors, race conditions, and state mutation where values should be immutable.
 
-**Edge Cases & Error Handling:**
-- API error states not handled (no error branch, no loading state)
-- Missing fallback for async failure paths
+**Edge Cases & Error Handling:** Look for API error states not handled, missing loading states, and missing fallbacks for async failure paths.
 
-**Performance:**
-- Unnecessary repeated computation that could be cached or memoized
-- Expensive operations triggered more often than needed
-- N+1 API calls: looping over items and making one request per item
+**Performance:** Look for unnecessary repeated computation that could be cached, expensive operations triggered more often than needed, and N+1 API call patterns.
 
-**Code Quality & Readability:**
-- Duplicated logic that already exists in the repo (check for existing utilities or shared modules)
-- Dead code introduced by the change (imported but unused, unreachable branches)
-- Magic numbers/strings without named constants
-- Variable or function names that are misleading given what the code actually does
-- Complex expressions or deeply nested logic that could be extracted into a well-named variable or function
-- Conditions that read backwards or require double-negation to understand
+**Code Quality & Readability:** Look for duplicated logic that already exists in the repo, dead code introduced by the change, magic numbers or strings without named constants, misleading names, and conditions that require double-negation to understand.
 
-**Security:**
-- User-controlled input interpolated into HTML or SQL without sanitization (XSS, injection)
-- Credentials, tokens, or PII logged or exposed in responses
-- Permissions or auth checks missing on a gated action
+**Repo Conventions:** Using the rules extracted in Step 3, flag where the diff solves a problem in a way that is uncommon relative to how the rest of the repo solves the same problem. Only flag when the deviation is meaningful — when it would confuse a teammate or create inconsistency that costs maintenance effort. Do not flag stylistic differences that don't affect how the code is read or composed.
+
+**Security:** Look for user-controlled input interpolated into HTML or SQL without sanitization, credentials or PII logged or exposed, and missing auth checks on gated actions.
 
 ### Step 5: Cross-Check Against Design Documents (only if documents were provided in Step 2)
 
-Skip this step entirely if no `prd`, `be_td`, or `fe_td` was provided.
+Skip this step entirely if no PRD/TRD, BE TD, or FE TD was provided.
 
-**If `prd` is provided — requirement coverage:**
-- Extract every FE requirement from the PRD that is in scope for this repo.
-- For each requirement, check whether the changed code implements it.
-- Flag: requirements present in the PRD but absent from the diff (not implemented).
-- Flag: behaviors implemented in the diff that have no corresponding PRD requirement (scope creep or undocumented feature).
-- Do not flag requirements already implemented before this branch — only assess what the current diff adds or changes.
+**If PRD/TRD is provided — requirement coverage:** Extract every FE requirement from the PRD that is in scope for this repo and check whether the changed code implements it. Flag requirements present in the PRD but absent from the diff, and behaviors implemented in the diff that have no corresponding PRD requirement (scope creep). Do not flag requirements already implemented before this branch.
 
-**If `be_td` is provided — API contract alignment:**
-- Identify every API call in the diff (service calls, HTTP clients, data-fetching utilities).
-- For each call, verify against the BE TD:
-  - Endpoint path and HTTP method match the BE TD definition.
-  - Request parameters (query params, body fields, headers) match the BE TD contract.
-  - Response fields accessed in the code exist in the BE TD's response shape.
-  - Error codes/states handled in the code match what the BE TD defines.
-- Flag: calls to endpoints not defined in the BE TD.
-- Flag: response fields accessed that are absent from the BE TD response shape.
-- Flag: error handling for codes the BE TD does not define (or missing handling for codes it does define).
+**If BE TD is provided — API contract alignment:** Identify every API call in the diff and verify each against the BE TD: endpoint path and method, request parameters, response fields accessed, and error codes handled. Flag calls to endpoints not in the BE TD, response fields accessed that are absent from the BE TD, and mismatched error handling.
 
-**If `fe_td` is provided — design decision traceability:**
-- Check that the component structure, state management approach, and data flow described in the FE TD are reflected in the changed code.
-- Flag: components, hooks, or state slices the FE TD specifies that are missing from the diff.
-- Flag: significant deviations from the FE TD's design (different state shape, different component split, different API call trigger point) — not style deviations, only structural ones that would affect behavior.
-- Flag: code in the diff that contradicts an explicit FE TD decision without an obvious reason.
+**If FE TD is provided — design decision traceability:** Check that the component structure, state management approach, and data flow described in the FE TD are reflected in the changed code. Flag components, hooks, or state slices the FE TD specifies that are missing from the diff, and significant structural deviations — not style, only deviations that would affect behavior.
 
 ### Step 6: Output the Report
 
@@ -108,29 +78,39 @@ Skip this step entirely if no `prd`, `be_td`, or `fe_td` was provided.
 ### Summary
 2–3 sentences. State what changed (files/domains) and the overall assessment (clean / has issues / has bugs).
 
+### Architecture Overview
+ASCII flow charts produced in Step 3.5. Always include all four sections (Entry Points, New Component Tree, Data Flow, Shared Lib Changes) that are relevant to the diff. This section comes before Findings so the reader is oriented before seeing individual issues.
+
 ### Findings
 
-Use this format for each finding:
+Use this format for each finding. Categories: `Correctness`, `Edge Cases`, `Performance`, `Code Quality`, `Repo Conventions`, `Security`.
 
 **Category — file:line**
 - **Issue:** One sentence describing the bug or problem.
 - **Why it matters:** One sentence on the impact or failure mode.
 - **Suggestion:** Concrete fix or the minimum change needed. Code snippet if helpful.
 
-### Design Traceability
-(Only include if `prd`, `be_td`, or `fe_td` was provided. Omit sub-sections that are fully aligned.)
+For **Repo Conventions** findings, replace **Why it matters** with **Repo norm** — cite where the established pattern lives so the author can see the gap:
 
-**PRD Coverage** (only if `prd` provided):
+**Repo Conventions — file:line**
+- **Issue:** What the diff does that differs from the repo's established pattern.
+- **Repo norm:** How the repo solves this elsewhere (file or module reference).
+- **Suggestion:** The minimal change to align with the norm.
+
+### Design Traceability
+(Only include if PRD/TRD, BE TD, or FE TD was provided. Omit sub-sections that are fully aligned.)
+
+**PRD Coverage** (only if PRD/TRD provided):
 
 **[Missing / Scope Creep] Requirement**
 - Gap: what is not implemented or what was added without a corresponding PRD requirement.
 
-**BE API Alignment** (only if `be_td` provided):
+**BE API Alignment** (only if BE TD provided):
 
 **[Mismatch] API call in file:line**
 - Gap: what differs from the BE TD contract.
 
-**FE Design Alignment** (only if `fe_td` provided):
+**FE Design Alignment** (only if FE TD provided):
 
 **[Deviation] Area — file:line**
 - Gap: how the implementation differs from the FE TD design decision.
@@ -139,7 +119,4 @@ Use this format for each finding:
 
 ## Tone & Style
 
-- Use bullet points — one idea per bullet, short sentence.
-- Be direct: "This will crash when X is undefined" not "This might potentially have issues."
-- No praise or filler. Skip findings that are not actionable.
-- Do NOT rewrite logic that works — suggest only the minimal change needed to fix the issue.
+Be direct: "This will crash when X is undefined" not "This might potentially have issues." No praise or filler. Skip findings that are not actionable. Do NOT rewrite logic that works — suggest only the minimal change needed to fix the issue.
