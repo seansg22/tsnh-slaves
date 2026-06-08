@@ -4,8 +4,22 @@ Agent skills for frontend engineers. Works with Claude Code, Cursor, Codex, and 
 
 ## Install
 
+Claude Code
+
 ```bash
-npx skills@latest add seansg22/tsnh-slaves
+npx skills@latest add seansg22/tsnh-slaves -a claude-code -g --all --yes
+```
+
+Cursor
+
+```bash
+npx skills@latest add seansg22/tsnh-slaves -a cursor -g --all --yes
+```
+
+Codex
+
+```bash
+npx skills@latest add seansg22/tsnh-slaves -a codex -g --all --yes
 ```
 
 ## Skills
